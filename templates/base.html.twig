@@ -111,8 +111,13 @@ License: https://templatemag.com/license/
 				************************************************************************************************
 				*********************************************************** -->
 		<section id="main-content">
-			<section class="wrapper"> {% block central %}{% endblock %}
-				</section>
+			<section class="wrapper"> 
+		<div class="container-fluid">
+{% block central %}
+{% endblock %}
+{% block body %}
+{% endblock %}
+</div></section>
 			</section>
 			<!-- /MAIN CONTENT -->
 			<!--main content end-->
