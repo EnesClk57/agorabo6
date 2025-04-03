@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\TournoiRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -24,7 +26,19 @@ class Tournoi
     private ?\DateTimeInterface $dateCreation = null;
 
     #[ORM\ManyToOne(inversedBy: 'tournois')]    
-    private ?CatTournois $categorie = null; 
+    private ?CatTournois $categorie = null;
+
+    /**
+     * @var Collection<int, Participant>
+     */
+    #[ORM\ManyToMany(targetEntity: Participant::class, inversedBy: 'tournois')]
+    private Collection $participants;  
+
+    public function __construct()    
+    {        
+        $this->dateCreation = new \DateTime('now');
+        $this->participants = new ArrayCollection(); 
+    } 
 
     public function getId(): ?int
     {
@@ -39,7 +53,6 @@ class Tournoi
     public function setLibelle(string $libelle): static
     {
         $this->libelle = $libelle;
-
         return $this;
     }
 
@@ -51,7 +64,6 @@ class Tournoi
     public function setDate(\DateTimeInterface $date): static
     {
         $this->date = $date;
-
         return $this;
     }
 
@@ -63,22 +75,49 @@ class Tournoi
     public function setDateCreation(\DateTimeInterface $dateCreation): static
     {
         $this->dateCreation = $dateCreation;
-
         return $this;
     }
-    public function __construct()    
-     {        
-        $this->dateCreation = new \DateTime('now');    
-     } 
 
-     public function getCategorie(): ?CatTournois     
-     {
+    public function getCategorie(): ?CatTournois     
+    {
         return $this->categorie; 
-     } 
-     public function setCategorie(?CatTournois $categorie): static    
-      {         
+    } 
+    
+    public function setCategorie(?CatTournois $categorie): static    
+    {         
         $this->categorie = $categorie;          
-        
         return $this;     
     }
- } 
+    public function getNbParticipants(): ?int     
+    {         
+        return $this->nb_participants;    
+     }      
+    public function setNbParticipants(?int $nb_participants): static     
+    {         
+        $this->nb_participants = $nb_participants;          
+        
+        return $this;     
+    } 
+
+    /**
+     * @return Collection<int, Participant>
+     */
+    public function getParticipants(): Collection
+    {
+        return $this->participants;  
+    }
+
+    public function addParticipant(Participant $participant): static
+    {
+        if (!$this->participants->contains($participant)) {  
+            $this->participants->add($participant);
+        }
+        return $this;
+    }
+
+    public function removeParticipant(Participant $participant): static  
+    {
+        $this->participants->removeElement($participant);
+        return $this;
+    }
+}

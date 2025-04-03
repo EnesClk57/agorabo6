@@ -6,14 +6,13 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-class TournoisController extends AbstractController
+class ParticipantsController extends AbstractController
 {
-    #[Route('/tournois', name: 'app_tournois')]
+    #[Route('/participants', name: 'app_participants')]
     public function index(): Response
     {
-        return $this->render('tournois/index.html.twig', [
-            'controller_name' => 'TournoisController',
-            'menuActif' => 'Jeux',
+        return $this->render('participants/index.html.twig', [
+            'controller_name' => 'ParticipantsController',
         ]);
     }
 }

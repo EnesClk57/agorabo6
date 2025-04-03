@@ -30,7 +30,11 @@ for ($i = 0; $i < 10; $i++) {
  $membre->setRueMembre($this->faker->streetAddress);
  $membre->setVilleMembre($this->faker->city);
  $membre->setCpMembre($this->faker->numberBetween(111111, 999999));
- $manager->persist($membre); }
+ if ($i == 0) {                
+    $membre->setRoles(array("ROLE_USER", "ROLE_ADMIN"));              
+}
+$manager->persist($membre); 
+}
 $manager->flush();
 }
 }
