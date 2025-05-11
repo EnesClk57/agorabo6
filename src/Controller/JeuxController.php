@@ -1,104 +1,122 @@
 <?php
-// src/Controller/JeuxController.php
+
 namespace App\Controller;
 
-use Symfony\Component\HttpFoundation\Response;
-
-require_once 'modele/class.PdoJeux.inc.php';
-
-use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+use App\Repository\JeuVideoRepository;
+use App\Entity\JeuVideo;
+use App\Form\JeuVideoType;
+use App\Entity\JeuVideoRecherche;
+use App\Form\JeuVideoRechercheType;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Bundle\FrameworkBundle\Controller\RedirectController;
-use PdoJeux;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
-class JeuxController extends AbstractController
-{
-    /**
-     * fonction pour afficher la liste des jeux
-     * @param $db
-     * @param $idGenreModif positionné si demande de modification
-     * @param $idGenreNotif positionné si mise à jour dans la vue
-     * @param $notification pour notifier la mise à jour dans la vue
-     */
-    private function afficherJeux(
-        PdoJeux $db,
-        string $idJeuModif,
-        string $idJeuNotif,
-        string $notification
-    ) {
-        $tbMembres = $db->getLesMembres();
-        $tbJeux = $db->getLesJeuxComplet();
-        $tbPlateformes = $db->getLesPlateformes();
-        $tbPegis = $db->getLesPegis();
-        $tbGenres = $db->getLesGenres();
-        $tbMarques = $db->getLesMarques();
-        return $this->render('lesJeux.html.twig', array(
+
+class JeuxController extends AbstractController {  
+
+#[Route('/jeux', name: 'app_jeux')]     
+   public function index(Request $request, JeuVideoRepository $repository, SessionInterface $session): Response
+     { 
+        // créer l'objet et le formulaire de recherche
+        $jeuxRecherche = new JeuVideoRecherche();
+        $formRecherche = $this->createForm(JeuVideoRechercheType::class,$jeuxRecherche);
+        $formRecherche->handleRequest($request);
+    if ($formRecherche->isSubmitted() && $formRecherche->isValid()) {
+        $jeuxRecherche = $formRecherche->getData();
+        // cherche les jeux correspondant aux critères, triés par libellé
+        // requête construite dynamiquement alors il est plus simple d'utiliser le querybuilder
+        $lesJeux = $repository->findAllByCriteria($jeuxRecherche);
+        // mémoriser les critères de sélection dans une variable de session
+        $session->set('JeuxCriteres', $jeuxRecherche);
+
+} else {
+        // lire les jeux
+    if ($session->has("JeuxCriteres")) {
+        $jeuxRecherche = $session->get("JeuxCriteres");
+        $lesJeux = $repository->findAllByCriteria($jeuxRecherche);
+        $formRecherche = $this->createForm(JeuVideoRechercheType::class, $jeuxRecherche);
+        $formRecherche->setData($jeuxRecherche);
+}else {
+        $lesJeux = $repository->findAllOrderByLibelle();
+        }
+    }   
+
+    return $this->render('jeux/index.html.twig', [
+            'formRecherche' => $formRecherche->createView(),
+            'lesJeux' => $lesJeux,
             'menuActif' => 'Jeux',
-            'tbJeux' => $tbJeux,
-            'tbPlateformes' => $tbPlateformes,
-            'tbPegis' => $tbPegis,
-            'tbGenres' => $tbGenres,
-            'tbMarques' => $tbMarques,
-            'idJeuModif' => $idJeuModif,
-            'idJeuNotif' => $idJeuNotif,
-            'notification' => $notification
-        ));
-    }
-    #[Route('/jeux', name: 'jeux_afficher')]
-    public function index(SessionInterface $session)
-    {
-        if ($this->getUser()) {
-            $db = PdoJeux::getPdoJeux();
-            return $this->afficherJeux($db, -1, -1, 'rien');
-        } else {
-            return $this->render('connexion.html.twig');
-        }
-    }
-    #[Route('/jeux/ajouter', name: 'jeux_ajouter')]
-    public function ajouter(SessionInterface $session, Request $request)
-    {
-        $db = PdoJeux::getPdoJeux();
-        if (!empty($request->request->get('txtRefJeu'))) {
-            $idJeuNotif = $db->ajouterJeu($request->request->get('txtRefJeu'), $request->request->get('txtIdPlateformeJeu'), $request->request->get('txtIdPegiJeu'), $request->request->get('txtIdGenreJeu'), $request->request->get('txtIdMarqueJeu'), $request->request->get('txtNomJeu'), $request->request->get('prixJeu'), $request->request->get('txtDateParutionJeu'));
-            $notification = 'Ajouté';
-        }
+    ]);
+}
 
-        return $this->afficherJeux($db, -1, $idJeuNotif, $notification);
-    }
-    #[Route('/jeux/demandermodifier', name: 'jeux_demandermodifier')]
-    public function demanderModifier(SessionInterface $session, Request $request)
-    {
-        $db = PdoJeux::getPdoJeux();
-        return $this->afficherJeux(
-            $db,
-            $request->request->get('txtRefJeu'),
-            -1,
-            'rien'
-        );
-    }
-    #[Route('/jeux/validermodifier', name: 'jeux_validermodifier')]
-    public function validerModifier(SessionInterface $session, Request $request)
-    {
-        $db = PdoJeux::getPdoJeux();
-        $db->modifierJeu($request->request->get('txtRefJeu'), $request->request->get('txtIdPlateformeJeu'), $request->request->get('txtIdPegiJeu'), $request->request->get('txtIdGenreJeu'), $request->request->get('txtIdMarqueJeu'), $request->request->get('txtNomJeu'), $request->request->get('prixJeu'), $request->request->get('txtDateParutionJeu'));
-        return $this->afficherJeux(
-            $db,
-            -1,
-            $request->request->get('txtRefJeu'),
-            'Modifié'
-        );
-    }
-    #[Route('/jeux/supprimer', name: 'jeux_supprimer')]
-    public function supprimer(SessionInterface $session, Request $request)
-    {
-        $db = PdoJeux::getPdoJeux();
-        $db->supprimerJeu($request->request->get('txtRefJeu'));
+#[Route('/jeux/ajouter', name: 'app_jeux_ajouter')]
+public function ajouter(JeuVideo $jeux = null, Request $request,EntityManagerInterface $entityManager): Response
+ {
+        $form = $this->createForm(JeuVideoType::class, $jeux);
+        $form->handleRequest($request);
+        
+    if ($form->isSubmitted() && $form->isValid()) {
+        // cas où le formulaire d'ajout a été soumis par l'utilisateur et est valide
+        $jeux = $form->getData();
+        // on met à jour la base de données 
+        $entityManager->persist($jeux);
+        $entityManager->flush();
         $this->addFlash(
             'success',
-            'Le jeu a été supprimé'
-        );
-        return $this->afficherJeux($db, -1, -1, 'rien');
+            'Le jeux vidéo ' . $jeux->getNom() . ' a été ajouté.'
+    );
+        return $this->redirectToRoute('app_jeux');
+} else {
+    // cas où l'utilisateur a demandé l'ajout, on affiche le formulaire d'ajout
+        return $this->render('jeux/ajouter.html.twig', [
+            'form' => $form->createView(),
+            'menuActif' => 'Jeux',
+        ]);
     }
 }
+
+    
+ #[Route('/jeux/modifier/{id<\d+>}', name: 'app_jeux_modifier')]
+    public function modifier(JeuVideo $jeux = null, Request $request, EntityManagerInterface $entityManager): Response
+{
+    $form = $this->createForm(JeuVideoType::class, $jeux);
+    $form->handleRequest($request);
+
+    if ($form->isSubmitted() && $form->isValid()) {
+        // cas où le formulaire a été soumis par l'utilisateur et est valide
+        // pas besoin de "persister" l'entité : en effet, l'objet a déjà été
+        // retrouvé à partir de Doctrine ORM.
+        $entityManager->flush();
+        $this->addFlash(
+            'success',
+            'Le jeux vidéo ' . $jeux->getNom() . ' a été modifié.'
+        );
+        return $this->redirectToRoute('app_jeux');
+    }
+
+    // cas où l'utilisateur a demandé la modification, on affiche le
+    // formulaire pour la modification
+    return $this->render('jeux/modifier.html.twig', [
+        'form' => $form->createView(),
+        'menuActif' => 'Jeux',
+    ]);
+}
+
+#[Route('/jeux/supprimer/{id<\d+>}', name: 'app_jeux_supprimer')]
+    public function supprimer(JeuVideo $jeux, Request $request,EntityManagerInterface $entityManager): Response
+{
+
+    if ($this->isCsrfTokenValid('action-item' . $jeux->getId(), $request->get('_token'))) {
+        $entityManager->remove($jeux);
+        $entityManager->flush();
+        $this->addFlash(
+            'success',
+            'Le jeu ' . $jeux->getNom() . ' a été supprimé.'
+        );
+        
+        return $this->redirectToRoute('app_jeux');
+        }
+    }
+} 
